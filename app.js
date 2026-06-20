@@ -242,6 +242,28 @@ function setModal(nextModal) {
   render();
 }
 
+function captureChatDraft() {
+  const textarea = document.querySelector("form[data-form='chat'] textarea[name='body']");
+  if (!textarea) return null;
+  return {
+    value: textarea.value,
+    start: textarea.selectionStart,
+    end: textarea.selectionEnd,
+    focused: document.activeElement === textarea
+  };
+}
+
+function restoreChatDraft(draft) {
+  if (!draft) return;
+  requestAnimationFrame(() => {
+    const textarea = document.querySelector("form[data-form='chat'] textarea[name='body']");
+    if (!textarea) return;
+    textarea.value = draft.value;
+    textarea.setSelectionRange(draft.start, draft.end);
+    if (draft.focused) textarea.focus();
+  });
+}
+
 async function initCloudState() {
   if (!isCloudConfigured()) return;
 
@@ -275,7 +297,7 @@ async function initCloudState() {
 function startCloudSync() {
   if (!isCloudConfigured() || cloudSyncTimer) return;
 
-  cloudSyncTimer = window.setInterval(() => syncFromCloud(true), 5000);
+  cloudSyncTimer = window.setInterval(() => syncFromCloud(true), 2000);
   window.addEventListener("focus", () => syncFromCloud(false));
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) syncFromCloud(false);
@@ -299,7 +321,9 @@ async function persistCloudState() {
 
 async function syncFromCloud(silent = false) {
   if (!isCloudConfigured() || isSavingCloud) return;
-  if (document.activeElement?.closest("form")) return;
+  const activeForm = document.activeElement?.closest("form");
+  const isChatCompose = Boolean(document.activeElement?.closest("form[data-form='chat']"));
+  if (activeForm && !isChatCompose) return;
 
   try {
     const onlineState = await loadCloudState();
@@ -317,11 +341,13 @@ async function syncFromCloud(silent = false) {
       return;
     }
 
+    const chatDraft = isChatCompose ? captureChatDraft() : null;
     state = normalized;
     saveState(state);
     lastCloudSnapshot = snapshot;
-    cloudStatus = silent ? "همگام‌سازی آنلاین فعال است." : "اطلاعات از دیتابیس آنلاین به‌روزرسانی شد.";
+    cloudStatus = silent ? "همگام‌سازی زنده فعال است." : "اطلاعات از دیتابیس آنلاین به‌روزرسانی شد.";
     render();
+    restoreChatDraft(chatDraft);
   } catch {
     if (!silent) {
       cloudStatus = "همگام‌سازی آنلاین ناموفق بود.";
