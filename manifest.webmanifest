@@ -1,0 +1,31 @@
+{
+  "name": "اتوماسیون اداری و CRM",
+  "short_name": "CRM اداری",
+  "description": "اتوماسیون اداری، CRM، چت داخلی، تسک و نامه‌نگاری",
+  "dir": "rtl",
+  "lang": "fa-IR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f7fb",
+  "theme_color": "#116a7b",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "چت داخلی",
+      "url": "./?route=chat"
+    },
+    {
+      "name": "تسک‌ها",
+      "url": "./?route=tasks"
+    }
+  ]
+}
