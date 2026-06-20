@@ -83,8 +83,47 @@ function normalizeState(nextState) {
     tasks: nextState.tasks || [],
     taskLogs: nextState.taskLogs || [],
     activityLogs: nextState.activityLogs || [],
-    logs: nextState.logs || []
+    logs: nextState.logs || [],
+    _sync: {
+      updatedAt: nextState._sync?.updatedAt || "",
+      deviceId: nextState._sync?.deviceId || deviceId()
+    }
   };
+}
+
+function deviceId() {
+  const key = "office-crm-device-id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = uid("device");
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+function markStateChanged() {
+  state._sync = {
+    updatedAt: new Date().toISOString(),
+    deviceId: deviceId()
+  };
+}
+
+function syncTime(nextState) {
+  return Date.parse(nextState?._sync?.updatedAt || "") || 0;
+}
+
+function hasBusinessData(nextState) {
+  return Boolean(
+    nextState?.customers?.length ||
+    nextState?.deals?.length ||
+    nextState?.letters?.length ||
+    nextState?.chats?.length ||
+    nextState?.tasks?.length ||
+    nextState?.taskLogs?.length ||
+    nextState?.activityLogs?.length ||
+    nextState?.logs?.length ||
+    (nextState?.users?.length && JSON.stringify(nextState.users) !== JSON.stringify(normalizeState({}).users))
+  );
 }
 
 function currentUser() {
@@ -191,6 +230,7 @@ function logActivity(text) {
 }
 
 function persist() {
+  markStateChanged();
   saveState(state);
   persistCloudState();
   applySettings();
@@ -207,15 +247,24 @@ async function initCloudState() {
 
   try {
     const onlineState = await loadCloudState();
-    if (onlineState) {
-      state = normalizeState(onlineState);
+    const localState = normalizeState(state);
+    const normalizedOnline = onlineState ? normalizeState(onlineState) : null;
+    const shouldUseOnline = normalizedOnline && (
+      syncTime(normalizedOnline) > syncTime(localState) ||
+      (!hasBusinessData(localState) && hasBusinessData(normalizedOnline))
+    );
+
+    if (shouldUseOnline) {
+      state = normalizedOnline;
       saveState(state);
       lastCloudSnapshot = JSON.stringify(state);
-      cloudStatus = "دیتابیس آنلاین وصل است.";
+      cloudStatus = "دیتابیس آنلاین وصل است و اطلاعات جدیدتر دریافت شد.";
     } else {
+      state = localState;
+      if (!state._sync.updatedAt) markStateChanged();
       await saveCloudState(state);
       lastCloudSnapshot = JSON.stringify(state);
-      cloudStatus = "دیتابیس آنلاین ساخته و آماده شد.";
+      cloudStatus = "دیتابیس آنلاین با اطلاعات این دستگاه همگام شد.";
     }
   } catch {
     cloudStatus = "اتصال دیتابیس آنلاین برقرار نشد؛ حالت محلی فعال است.";
@@ -257,6 +306,11 @@ async function syncFromCloud(silent = false) {
     if (!onlineState) return;
 
     const normalized = normalizeState(onlineState);
+    if (syncTime(normalized) <= syncTime(state)) {
+      lastCloudSnapshot = JSON.stringify(state);
+      return;
+    }
+
     const snapshot = JSON.stringify(normalized);
     if (snapshot === lastCloudSnapshot || snapshot === JSON.stringify(state)) {
       lastCloudSnapshot = snapshot;
@@ -320,7 +374,7 @@ function markActiveChatRead() {
     return { ...message, readBy: [...(message.readBy || []), user.id] };
   });
 
-  if (changed) saveState(state);
+  if (changed) persist();
 }
 
 function render() {
@@ -1641,7 +1695,7 @@ function recordLogout() {
   if (!user) return;
   state.users = state.users.map((item) => item.id === user.id ? { ...item, lastLogoutAt: nowDateTimeFa() } : item);
   logActivity("از سیستم خارج شد");
-  saveState(state);
+  persist();
 }
 
 function saveCustomer(id, data) {
