@@ -365,6 +365,17 @@ h1 {
   font-size: 15px;
 }
 
+.cloud-status {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--primary-dark);
+  background: #e5f4f5;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

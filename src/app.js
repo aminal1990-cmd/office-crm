@@ -1,5 +1,6 @@
 import { PERMISSIONS, ROLES as DEFAULT_ROLES } from "./data.js";
 import { clearSession, loadSession, loadState, saveSession, saveState, uid } from "./store.js";
+import { isCloudConfigured, loadCloudState, saveCloudState } from "./cloud.js";
 
 const app = document.querySelector("#app");
 
@@ -34,8 +35,10 @@ let replyToChatId = null;
 let activeChatTarget = "public";
 let chatSearch = "";
 let serviceWorkerRegistration = null;
+let cloudStatus = isCloudConfigured() ? "در حال اتصال به دیتابیس آنلاین..." : "";
 
 registerPwa();
+initCloudState();
 
 function normalizeState(nextState) {
   return {
@@ -185,12 +188,35 @@ function logActivity(text) {
 
 function persist() {
   saveState(state);
+  saveCloudState(state).catch(() => {
+    cloudStatus = "ذخیره آنلاین ناموفق بود؛ نسخه محلی ذخیره شد.";
+    render();
+  });
   applySettings();
   render();
 }
 
 function setModal(nextModal) {
   modal = nextModal;
+  render();
+}
+
+async function initCloudState() {
+  if (!isCloudConfigured()) return;
+
+  try {
+    const onlineState = await loadCloudState();
+    if (onlineState) {
+      state = normalizeState(onlineState);
+      saveState(state);
+      cloudStatus = "دیتابیس آنلاین وصل است.";
+    } else {
+      await saveCloudState(state);
+      cloudStatus = "دیتابیس آنلاین ساخته و آماده شد.";
+    }
+  } catch {
+    cloudStatus = "اتصال دیتابیس آنلاین برقرار نشد؛ حالت محلی فعال است.";
+  }
   render();
 }
 
@@ -292,6 +318,7 @@ function render() {
           <div>
             <h2>${routeLabels[route]}</h2>
             <div class="eyebrow">اطلاعات خام است؛ همه مشتریان، نامه‌ها و فرصت‌ها را خودتان وارد می‌کنید.</div>
+            ${cloudStatus ? `<div class="cloud-status">${escapeHtml(cloudStatus)}</div>` : ""}
           </div>
           <div class="toolbar">${renderRouteActions()}</div>
         </header>

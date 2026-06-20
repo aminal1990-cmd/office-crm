@@ -1,4 +1,4 @@
-const CACHE_NAME = "office-crm-pwa-v1";
+const CACHE_NAME = "office-crm-pwa-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,8 @@ const APP_SHELL = [
   "./manifest.webmanifest",
   "./assets/icon.svg",
   "./src/app.js",
+  "./src/cloud.js",
+  "./src/config.js",
   "./src/data.js",
   "./src/store.js"
 ];
